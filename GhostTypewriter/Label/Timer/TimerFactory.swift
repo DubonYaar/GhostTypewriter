@@ -32,14 +32,25 @@ class TimerFactory: TimerFactoryType {
      - Parameter block: A block to be executed when the timer fires. The block takes a single Timer parameter and has no return value.
      */
     func buildScheduledTimer(withTimeInterval interval: TimeInterval, repeats: Bool, block: @escaping (TimerType) -> Void) -> TimerType {
-        //  DispatchQueue.global(qos: .background).async {
-        let timer = Timer(timeInterval: interval, repeats: repeats, block: block)
-        let runLoop = RunLoop.current
-        runLoop.add(timer, forMode: .default)
-        runLoop.run()
+        let queue = DispatchQueue(label: "Serial queue", qos: .background)
+        let group = DispatchGroup()
 
-        return timer
-        // }
-        // return Timer.scheduledTimer(withTimeInterval: interval, repeats: repeats, block: block)
+        group.enter()
+
+        var anyTimer: Timer!
+
+        queue.async {
+            DispatchQueue.global(qos: .background).async {
+                let timer = Timer(timeInterval: interval, repeats: repeats, block: block)
+                let runLoop = RunLoop.current
+                runLoop.add(timer, forMode: .default)
+                runLoop.run()
+                anyTimer = timer
+                group.leave()
+            }
+        }
+
+        group.wait()
+        return anyTimer
     }
 }
